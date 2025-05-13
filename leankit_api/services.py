@@ -24,19 +24,42 @@ HEADERS = {
 def get_boards():
     """
     Récupère la liste des boards LeanKit/AgilePlace.
+    Retourne une liste de dicts JSON.
     """
     url  = f"{BASE_URL}/board"
     resp = requests.get(url, headers=HEADERS, verify=False)
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
+    # on renvoie la liste sous la clé 'boards'
+    return data.get('boards', [])
 
 
 def get_cards(board_id):
     """
-    Récupère les cartes d'un board donné.
+    Récupère **toutes** les cartes d'un board donné, en paginant.
     """
-    url  = f"{BASE_URL}/board/{board_id}/card"
-    resp = requests.get(url, headers=HEADERS, verify=False)
-    resp.raise_for_status()
-    return resp.json()
+    all_cards = []
+    limit  = 200
+    offset = 0
+
+    while True:
+        url = f"{BASE_URL}/board/{board_id}/card?limit={limit}&offset={offset}"
+        resp = requests.get(url, headers=HEADERS, verify=False)
+        resp.raise_for_status()
+        data = resp.json()
+        cards = data.get('cards', [])
+        all_cards.extend(cards)
+
+        # pageMeta indique combien il y a en tout
+        meta = data.get('pageMeta', {})
+        total = meta.get('totalRecords', 0)
+
+        # si on a atteint ou dépassé le total, on arrête
+        if len(all_cards) >= total:
+            break
+
+        # sinon, on décale l’offset
+        offset += limit
+
+    return all_cards
 
